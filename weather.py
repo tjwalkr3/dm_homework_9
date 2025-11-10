@@ -71,30 +71,24 @@ if __name__ == "__main__":
 
     print("Linear Regression:")
     params, intercept = weather.linear_regression("AirTF_Avg", "RH_Avg")
+    
     print(f"Bias: {intercept}, Parameter: {params[0]}")
-
     x = weather.weather_df["AirTF_Avg"].values
     y_actual = weather.weather_df["RH_Avg"].values
     y_predicted = params[0] * x + intercept
-    
-    rmse = np.sqrt(np.mean((y_actual - y_predicted) ** 2))
-    print(f"RMSE: {rmse}")
-
-    r = weather.correlation("AirTF_Avg", "RH_Avg")
-    print(f"Correlation coefficient: {r}")
+    print(f"RMSE: {np.sqrt(np.mean((y_actual - y_predicted) ** 2))}")
+    print(f"Correlation: {weather.correlation("AirTF_Avg", "RH_Avg")}")
 
     all_predictors = ["AirTF_Avg", "AirTF_Max", "AirTF_Min", "WindGust", "AveWindSp", "WindDir", "BP_inHg_Avg", "Rain_Tot", "TdC_Min", "TdC_Max"]
     print("\nMultilinear Regression:")
     params_all, intercept_all = weather.linear_regression(all_predictors, "RH_Avg")
+    
     print(f"Bias: {intercept_all}")
     for i, col in enumerate(all_predictors):
         print(f"{col}: {params_all[i]}")
-    
     X_all = np.column_stack([weather.weather_df[col].values for col in all_predictors])
     y_predicted_all = X_all @ params_all + intercept_all
-    rmse_all = np.sqrt(np.mean((y_actual - y_predicted_all) ** 2))
-    print(f"RMSE (Multilinear): {rmse_all}")
-
+    print(f"RMSE: {np.sqrt(np.mean((y_actual - y_predicted_all) ** 2))}")
     print("\nCorrelations:")
     print(f"AirTF_Avg & RH_Avg -> {weather.correlation("AirTF_Avg", "RH_Avg")}")
     print(f"AirTF_Max & RH_Avg -> {weather.correlation("AirTF_Max", "RH_Avg")}")
