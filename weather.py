@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
+from scipy import stats
 
 class Weather:
     def __init__(self, filepath):
         df = pd.read_csv(filepath, skiprows=[0, 2, 3])
         
         columns_to_keep = [
-            'TIMESTAMP',
             'AirTF_Avg',
             'AirTF_Max',
             'AirTF_Min',
@@ -24,23 +24,25 @@ class Weather:
         self.clean_data()
     
     def clean_data(self):
-        numeric_cols = self.weather_df.select_dtypes(include=[np.number]).columns
-        self.weather_df[numeric_cols] = self.weather_df[numeric_cols].replace(['NAN', 'nan', 'NaN', ''], np.nan)
-        self.weather_df.dropna(inplace=True)
+        # Drop rows with missing values
+        self.weather_df = self.weather_df.dropna()
         
-        for col in numeric_cols:
-            Q1 = self.weather_df[col].quantile(0.25)
-            Q3 = self.weather_df[col].quantile(0.75)
-            IQR = Q3 - Q1
-            lower_bound = Q1 - 1.5 * IQR
-            upper_bound = Q3 + 1.5 * IQR
-            self.weather_df = self.weather_df[(self.weather_df[col] >= lower_bound) & (self.weather_df[col] <= upper_bound)]
+        # Filter temperature range
+        self.weather_df = self.weather_df[(self.weather_df['AirTF_Avg'] <= 200) & (self.weather_df['AirTF_Avg'] >= -20)]
+        
+        # Remove outliers using Z-score (threshold=3)
+        numerical_cols = self.weather_df.select_dtypes(include=np.number).columns
+        
+        if not numerical_cols.empty:
+            z_scores = np.abs(stats.zscore(self.weather_df[numerical_cols]))
+            self.weather_df = self.weather_df[(z_scores < 3).all(axis=1)]
         
         self.weather_df.reset_index(drop=True, inplace=True)
     
     def linear_regression(self, x_cols, y_col):
         if isinstance(x_cols, str):
             x_cols = [x_cols]
+        
         X = np.column_stack([self.weather_df[col].values for col in x_cols])
         y = self.weather_df[y_col].values
         A = np.column_stack([X, np.ones(len(y))])
@@ -59,8 +61,8 @@ class Weather:
         n = len(x)
         x_mean = np.mean(x)
         y_mean = np.mean(y)
-        s_x = np.std(x)
-        s_y = np.std(y)
+        s_x = np.std(x, ddof=1)
+        s_y = np.std(y, ddof=1)
         
         r = (1 / (n - 1)) * np.sum(((x - x_mean) / s_x) * ((y - y_mean) / s_y))
         
@@ -73,6 +75,7 @@ if __name__ == "__main__":
     params, intercept = weather.linear_regression("AirTF_Avg", "RH_Avg")
     
     print(f"Bias: {intercept}, Parameter: {params[0]}")
+    
     x = weather.weather_df["AirTF_Avg"].values
     y_actual = weather.weather_df["RH_Avg"].values
     y_predicted = params[0] * x + intercept
@@ -86,9 +89,12 @@ if __name__ == "__main__":
     print(f"Bias: {intercept_all}")
     for i, col in enumerate(all_predictors):
         print(f"{col}: {params_all[i]}")
+    
     X_all = np.column_stack([weather.weather_df[col].values for col in all_predictors])
+    y_actual_multi = weather.weather_df["RH_Avg"].values
     y_predicted_all = X_all @ params_all + intercept_all
-    print(f"RMSE: {np.sqrt(np.mean((y_actual - y_predicted_all) ** 2))}")
+    print(f"RMSE: {np.sqrt(np.mean((y_actual_multi - y_predicted_all) ** 2))}")
+    
     print("\nCorrelations:")
     print(f"AirTF_Avg & RH_Avg -> {weather.correlation("AirTF_Avg", "RH_Avg")}")
     print(f"AirTF_Max & RH_Avg -> {weather.correlation("AirTF_Max", "RH_Avg")}")

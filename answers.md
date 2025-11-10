@@ -1,4 +1,4 @@
-## Quiz Answers
+## Quiz Answers (my submitted answers, these are the ones I got, and some of them are incorrect)
 1. Overdetermined
 2. There are most likely no answers
 3. 83.7070
